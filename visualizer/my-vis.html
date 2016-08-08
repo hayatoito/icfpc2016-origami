@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Origami</title>
+    <script src="http://d3js.org/d3.v3.js"></script>
+    <style>
+      .axis path,
+      .axis line {
+        fill: none;
+        stroke: black;
+        shape-rendering: crispEdges;
+      }
+
+      .axis text {
+        font-family: sans-serif;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <p>Omigami</p>
+    <script>
+      const w = 400;
+      const h = 400;
+      const padding = 30;
+
+      const start = 1;
+      const end = 3000;
+
+      function padLeft(nr, n, str) {
+        return Array(n-String(nr).length+1).join(str||'0')+nr;
+      }
+
+      function draw(problem_id) {
+        const json = "../json/problem-" + padLeft(problem_id, 4) + ".json";
+        console.log('json', json);
+
+
+
+        d3.json(json, (data) => {
+
+          if (!data) {
+            if (problem_id < end) {
+              draw(problem_id + 1);
+              return;
+            }
+          }
+
+          //Create scale functions
+          const xmin = d3.min(data.polygons[0], d => d.x);
+          const xmax = d3.max(data.polygons[0], d => d.x);
+
+          const ymin = d3.min(data.polygons[0], d => d.y);
+          const ymax = d3.max(data.polygons[0], d => d.y);
+
+          let xdiff = xmax - xmin;
+          let ydiff = ymax - ymin;
+          let xdomain;
+          let ydomain;
+          if (xdiff > ydiff) {
+            xdomain = [xmin, xmax];
+            ydomain = [ymin, ymax + (xdiff - ydiff)];
+          } else {
+            xdomain = [xmin, xmax + (ydiff - xdiff)];
+            ydomain = [ymin, ymax];
+          }
+
+          const xScale = d3.scale.linear()
+                           .domain(xdomain)
+                           .range([padding * 2, w - padding * 2]);
+
+          const yScale = d3.scale.linear()
+                           .domain(ydomain)
+                           .range([h - padding * 2, padding * 2]);
+
+          d3.select("body")
+            .append("p")
+            .text(json);
+          const svg = d3.select("body")
+                        .append("svg")
+                        .attr("width", w)
+                        .attr("height", h);
+
+          console.log(data);
+          const lineFunction = d3.svg.line()
+                                 .x(d => xScale(d.x))
+                                 .y(d => yScale(d.y))
+                                 .interpolate("linear");
+
+          // TODO: Fill with black for negative polygons
+          data.polygons.forEach((p, i) => {
+            p.push(p[0]);
+            svg.append("path")
+               .attr("d", lineFunction(p))
+               .attr("stroke", "red")
+               .attr("stroke-width", 8)
+               .attr("fill", "rgba(255, 0, 0, 0.5)");
+          });
+
+          for (let e of data.skeltons) {
+            svg.append("path")
+               .attr("d", lineFunction([e.a, e.b]))
+               .attr("stroke", "blue")
+               .attr("stroke-width", 2);
+          }
+
+          const xAxis = d3.svg.axis()
+                          .scale(xScale)
+                          .orient("bottom")
+                          .ticks(5);  //Set rough # of ticks
+
+          svg.append("g")
+             .attr("class", "axis")
+             .attr("transform", "translate(0," + (h - padding) + ")")
+             .call(xAxis);
+
+          //Define Y axis
+          var yAxis = d3.svg.axis()
+                        .scale(yScale)
+                        .orient("left")
+                        .ticks(5);
+
+          //Create Y axis
+          svg.append("g")
+             .attr("class", "axis")
+             .attr("transform", "translate(" + padding + ",0)")
+             .call(yAxis);
+
+          if (problem_id < end) {
+            draw(problem_id + 1);
+          }
+        });
+      }
+
+      draw(start);
+    </script>
+  </body>
+</html>
